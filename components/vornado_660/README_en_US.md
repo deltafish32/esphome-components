@@ -1,4 +1,8 @@
 # Vornado 660
+
+[한국어](README.md)
+[English](README_en_US.md)
+
 ## Overview
 ESPHome External Components for Vornado 660 series.
 

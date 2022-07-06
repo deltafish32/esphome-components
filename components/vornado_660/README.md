@@ -1,4 +1,8 @@
 # Vornado 660
+
+[한국어](README.md)
+[English](README_en_US.md)
+
 ## 개요
 Vornado 660 서큘레이터를 위한 ESPHome External Components 입니다.
 
