@@ -39,9 +39,7 @@ Recommend using ESP32. ESP8266 is not recommended as it only 5 unrestricted pins
 
 Any ESP32 board can be used. However, you will have to modify the circuit yourself.
 
-![schematic](./pcb/vornado_schem.png)
-
-![pcb](./pcb/vornado_pcb.png)
+See [here](pcb/pcb.md) for more details.
 
 
 ### Configuration
