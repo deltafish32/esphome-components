@@ -1,0 +1,17 @@
+external_components:
+  - source: github://deltafish32/esphome-components/vornado_660
+    refresh: always
+
+fan:
+  - platform: vornado_660
+    name: Circulation Fan
+    id: circulation_fan
+    power_pin: 32
+    ll_pin: 27
+    l_pin: 26
+    h_pin: 25
+    hh_pin: 33
+    ll_fb_pin: 16
+    l_fb_pin: 17
+    h_fb_pin: 18
+    hh_fb_pin: 19
