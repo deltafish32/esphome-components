@@ -45,7 +45,7 @@ ESP32 사용을 권장드립니다. ESP8266 은 제약 없이 사용할 수 있�
 
 
 ### 설정
-설정 예제:
+기본 예제:
 
 ```yaml
 external_components:
@@ -66,6 +66,148 @@ fan:
     h_fb_pin: 18
     hh_fb_pin: 19
 ```
+
+버튼과 상태 표시를 위한 템플릿 스위치 추가:
+
+```yaml
+switch:
+  - platform: template
+    name: circulation_fan_1
+    lambda: |-
+      return id(circulation_fan).state && id(circulation_fan).speed == 1;
+    turn_on_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(true);
+          call.set_speed(1);
+          call.perform();
+    turn_off_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(false);
+          call.perform();
+  - platform: template
+    name: circulation_fan_2
+    lambda: |-
+      return id(circulation_fan).state && id(circulation_fan).speed == 2;
+    turn_on_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(true);
+          call.set_speed(2);
+          call.perform();
+    turn_off_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(false);
+          call.perform();
+  - platform: template
+    name: circulation_fan_3
+    lambda: |-
+      return id(circulation_fan).state && id(circulation_fan).speed == 3;
+    turn_on_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(true);
+          call.set_speed(3);
+          call.perform();
+    turn_off_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(false);
+          call.perform();
+  - platform: template
+    name: circulation_fan_4
+    lambda: |-
+      return id(circulation_fan).state && id(circulation_fan).speed == 4;
+    turn_on_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(true);
+          call.set_speed(4);
+          call.perform();
+    turn_off_action:
+      - lambda: |-
+          auto call = id(circulation_fan).make_call();
+          call.set_state(false);
+          call.perform();
+```
+
+Lovelace 설정:
+
+```yaml
+type: vertical-stack
+cards:
+  - show_name: true
+    show_icon: true
+    type: button
+    entity: fan.circulation_fan
+    show_state: false
+    icon_height: 40px
+    icon: ''
+    tap_action:
+      action: more-info
+  - square: true
+    columns: 5
+    type: grid
+    cards:
+      - show_name: false
+        show_icon: true
+        type: button
+        tap_action:
+          action: call-service
+          service: switch.turn_on
+          service_data: {}
+          target:
+            entity_id: switch.circulation_fan_1
+        entity: switch.circulation_fan_1
+        icon: mdi:numeric-1
+      - show_name: false
+        show_icon: true
+        type: button
+        tap_action:
+          action: call-service
+          service: switch.turn_on
+          service_data: {}
+          target:
+            entity_id: switch.circulation_fan_2
+        entity: switch.circulation_fan_2
+        icon: mdi:numeric-2
+      - show_name: false
+        show_icon: true
+        type: button
+        tap_action:
+          action: call-service
+          service: switch.turn_on
+          service_data: {}
+          target:
+            entity_id: switch.circulation_fan_3
+        entity: switch.circulation_fan_3
+        icon: mdi:numeric-3
+      - show_name: false
+        show_icon: true
+        type: button
+        tap_action:
+          action: call-service
+          service: switch.turn_on
+          service_data: {}
+          target:
+            entity_id: switch.circulation_fan_4
+        entity: switch.circulation_fan_4
+        icon: mdi:numeric-4
+      - show_name: false
+        show_icon: true
+        type: button
+        tap_action:
+          action: call-service
+          service: fan.toggle
+          service_data: {}
+          target:
+            entity_id: fan.circulation_fan
+        icon: mdi:power-standby
+```
+
+![lovelace](./lovelace.png)
 
 
 ## 기타
