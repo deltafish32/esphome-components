@@ -1,0 +1,16 @@
+external_components:
+  - source: github://deltafish32/esphome-components/climate_ir_lg_ex
+    refresh: always
+
+remote_transmitter:
+  pin: D2
+  carrier_duty_percent: 50%
+
+climate:
+  - platform: climate_ir_lg_ex
+    name: "Bedroom Ac"
+    id: bedroom_ac
+    supports_cool: true
+    supports_heat: false
+    visual:
+      temperature_step: 1.0
