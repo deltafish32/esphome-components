@@ -7,3 +7,4 @@
 
 - [Vornado 660](components/vornado_660/README.md)
 - [climate_ir_lg_ex](components/climate_ir_lg_ex/README.md)
+- [Navien Wallpad](components/navien_wallpad/README.md)

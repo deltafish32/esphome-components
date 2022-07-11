@@ -1,0 +1,53 @@
+external_components:
+  - source: github://deltafish32/esphome-components/navien_wallpad
+    refresh: always
+
+uart:
+  id: uart_bus
+  tx_pin: D2
+  rx_pin: D1
+  baud_rate: 9600
+  rx_buffer_size: 1024
+  
+navien_wallpad:
+  uart_id: uart_bus
+  lights:
+    - name: "LivingRoom Light1"
+      sub_id: 0x11
+    - name: "LivingRoom Light2"
+      sub_id: 0x12
+    - name: "LivingRoom Light3"
+      sub_id: 0x13
+  valve_sensor:
+    name: "Gas Valve"
+  valve_close_button:
+    name: "Gas Valve Close"
+  climates:
+    - name: "LivingRoom Climate"
+      sub_id: 0x11
+    - name: "BedRoom Climate"
+      sub_id: 0x12
+    - name: "BedRoom2 Climate"
+      sub_id: 0x13
+    - name: "BedRoom3 Climate"
+      sub_id: 0x14
+  measures:
+    water_current:
+      name: "Water Current"
+      update_interval: 30s
+    water_total:
+      name: "Water Total"
+      update_interval: 30s
+    gas_total:
+      name: "Gas Total"
+      update_interval: 30s
+    power_current:
+      name: "Power Current"
+      update_interval: 30s
+    power_total:
+      name: "Power Total"
+      update_interval: 30s
+  breaker:
+    name: "Break Lights"
+  detailed_log:
+    name: "Wallpad Log"
