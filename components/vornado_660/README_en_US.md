@@ -51,7 +51,7 @@ Configuration example:
 
 ```yaml
 external_components:
-  - source: github://deltafish32/esphome-components/vornado_660
+  - source: github://deltafish32/esphome-components
     refresh: always
 
 fan:

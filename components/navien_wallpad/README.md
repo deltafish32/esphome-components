@@ -78,7 +78,7 @@ RS485 는 원하시는 곳 어디든 연결하셔도 좋습니다. 아래와 같
 
 ```yaml
 external_components:
-  - source: github://deltafish32/esphome-components/navien_wallpad
+  - source: github://deltafish32/esphome-components
     refresh: always
 
 uart:

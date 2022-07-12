@@ -21,7 +21,7 @@ LG 에어컨을 위한 ESPHome External Components 입니다.
 
 ```yaml
 external_components:
-  - source: github://deltafish32/esphome-components/climate_ir_lg_ex
+  - source: github://deltafish32/esphome-components
     refresh: always
 
 remote_transmitter:

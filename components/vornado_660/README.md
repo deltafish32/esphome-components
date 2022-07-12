@@ -51,7 +51,7 @@ ESP32 사용을 권장드립니다. ESP8266 은 제약 없이 사용할 수 있�
 
 ```yaml
 external_components:
-  - source: github://deltafish32/esphome-components/vornado_660
+  - source: github://deltafish32/esphome-components
     refresh: always
 
 fan:
