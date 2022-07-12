@@ -18,6 +18,8 @@
 namespace esphome {
 namespace navien_wallpad {
 
+#define VERSION "0.1.1"
+
 
 class Navien_Wallpad : public uart::UARTDevice, public Component {
 public:
