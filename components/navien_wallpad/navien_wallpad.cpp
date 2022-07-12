@@ -108,13 +108,7 @@ void Navien_Wallpad::loop_write() {
       byte light_sub_id = 0;
       bool light_onoff = false;
       
-      if (find_light_changed(light_sub_id, light_onoff)) {
-        // Light State 변경된 경우 Command 전송
-        byte data[1] = { (byte)(light_onoff ? 1 : 0) };          
-        KSX4506_DATA ksx_data(KID_LIGHT, light_sub_id, KCT_REQ_CONTROL, 1, data);
-        buffer_len = ksx_data.to_buffer(buffer);
-      }
-      else if (polling_flag_ && polling_commands_count > 0) {
+      if (polling_flag_ && polling_commands_count > 0) {
         // 일반적인 Polling 처리
         int step = polling_step_;
         buffer_len = polling_commands[polling_step_].to_buffer(buffer);
@@ -195,13 +189,9 @@ void Navien_Wallpad::publish_lights() {
           bool state;
           l_out->get_light_state()->current_values_as_binary(&state);
           
-          if (l_group.init_publish == false) {
-            memcpy(l_group.state_new, l_group.state, sizeof(l_group.state_new));
-          }
-
-          if (l_group.init_publish == false || state != l_group.state_new[i]) {
+          if (l_group.init_publish == false || state != l_group.state[i]) {
             auto call = l_out->get_light_state()->make_call();
-            call.set_state(l_group.state_new[i] ? true : false);
+            call.set_state(l_group.state[i] ? true : false);
             call.perform();
           }
 
@@ -611,26 +601,6 @@ template <class _Ty> void Navien_Wallpad::trace_data(const char* tag, const _Ty&
 // }
 
 
-bool Navien_Wallpad::find_light_changed(byte& out_sub_id, bool& out_onoff) {
-  for (auto &l_group : lights_) {
-    // if (l_group.recv == false) continue;
-    if (l_group.init_publish == false) continue;
-
-    for (int i = 0; i < KSX4506_MAX_LIGHTS; i++) {
-      byte sub_id = MAKE_SUB_ID(l_group.group_id, i + 1);
-
-      if (l_group.state[i] != l_group.state_new[i]) {
-        out_sub_id = sub_id;
-        out_onoff = l_group.state[i] = l_group.state_new[i];
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-
 bool Navien_Wallpad::is_valid_sub_id_light(byte sub_id) {
   byte group_id = GET_GROUP(sub_id);
   byte each_id  = GET_EACH(sub_id);
@@ -718,34 +688,18 @@ void Navien_Wallpad::set_light_state(byte sub_id, bool onoff) {
   }
   
   if (each_id == KSX4506_ID_ALL) {
-    // byte data[1] = { (byte)(onoff ? 1 : 0) };
-    //// __this->write_queue_.push_back(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data));
-    // __this->write_queue_.emplace_back(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data);
-    
-    for (auto &l_group : __this->lights_) {
-      if (l_group.group_id == group_id) {
-        for (int i = 0; i < KSX4506_MAX_LIGHTS; i++) {
-          l_group.state_new[i] = onoff;
-        }
-        break;
-      }
-    }
+    byte data[1] = { (byte)(onoff ? 1 : 0) };
+    // __this->write_queue_.push_back(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data));
+    __this->write_queue_.emplace_back(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data);
   }
   else {
     if (!(each_id >= 1 && each_id <= KSX4506_MAX_LIGHTS)) {
       return;
     }
     
-    // byte data[1] = { (byte)(onoff ? 1 : 0) };
-    //// __this->write_queue_.push_back(KSX4506_DATA(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data));
-    // __this->write_queue_.emplace_back(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data);
-
-    for (auto &l_group : __this->lights_) {
-      if (l_group.group_id == group_id) {
-        l_group.state_new[index] = onoff;
-        break;
-      }
-    }
+    byte data[1] = { (byte)(onoff ? 1 : 0) };
+    // __this->write_queue_.push_back(KSX4506_DATA(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data));
+    __this->write_queue_.emplace_back(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data);
   }
 
   for (auto &l_group : __this->lights_) {

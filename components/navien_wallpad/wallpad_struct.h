@@ -19,7 +19,6 @@ typedef struct _GROUP_DEVICE_DATA : public DEVICE_DATA {
 
 typedef struct _LIGHT_DATA : public GROUP_DEVICE_DATA {
   bool state[KSX4506_MAX_LIGHTS]{false, };
-  bool state_new[KSX4506_MAX_LIGHTS]{false, };
 } LIGHT_DATA;
 
 

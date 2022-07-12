@@ -109,7 +109,7 @@ protected:
   bool on_recv_ksx4506(const KSX4506_DATA& ksx_data);
   template <class _Ty> void trace_data(const char* tag, const _Ty& data, byte len);
   //bool light_store_state(byte sub_id, bool state);
-  bool find_light_changed(byte& out_sub_id, bool& out_onoff);
+  // bool find_light_changed(byte& out_sub_id, bool& out_onoff);
 
   static bool is_valid_sub_id_light(byte sub_id);
   static bool is_valid_sub_id_climate(byte sub_id);
