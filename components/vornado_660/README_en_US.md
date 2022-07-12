@@ -8,9 +8,9 @@ ESPHome External Components for Vornado 660 series.
 
 | Feature | Support | Memo |
 | - | :-: | - |
-| Remote control | ✔️ | |
-| Original button control | ✔️ | |
-| Keep states when reset ESP | ✔️ | |
+| Remote control | ✅ | |
+| Original button control | ✅ | |
+| Keep states when reset ESP | ✅ | |
 | Blackout compensation | ❌ | not supported by Vornado |
 
 It is designed to receive control and feedback using 9 PC817 photo couplers.
