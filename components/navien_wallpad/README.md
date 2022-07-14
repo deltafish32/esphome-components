@@ -62,8 +62,7 @@ On/Off 및 상태 확인이 지원됩니다.
 | 전력-전체 | ✅ | |
 
 
-## 설치
-### 하드웨어
+## 하드웨어
 ESP32 혹은 ESP8266 에 RS485 to TTL 을 연결합니다.
 
 RS485 는 원하시는 곳 어디든 연결하셔도 좋습니다. 아래와 같은 곳에 있을 수 있습니다.
@@ -73,8 +72,8 @@ RS485 는 원하시는 곳 어디든 연결하셔도 좋습니다. 아래와 같
 - 주방 TV
 
 
-### 설정
-필수:
+## 설정
+### 필수
 
 ```yaml
 external_components:
@@ -94,7 +93,62 @@ navien_wallpad:
 
 이제, 필요한 항목을 하나씩 추가하시면 됩니다.
 
-조명 추가 방법:
+### 스캔
+
+조명과 온도조절기의 갯수와 종류를 파악할 수 있습니다.
+
+```yaml
+  wallpad_scan:
+    name: "Wallpad Scan"
+```
+
+ESPHome Log 창을 켜놓은 상태로 추가된 버튼을 누르면 스캔을 진행합니다. 시간이 약간 걸립니다.
+
+스캔에 성공한다면 아래와 같이 표시됩니다.
+
+```log
+[00:00:00][I][Navien_Wallpad:461]: Light Scan Result: Group: 1, Total: 3 (Binary: 3, Dimmable: 0)
+[00:00:00][I][Navien_Wallpad:464]:   List:
+[00:00:00][I][Navien_Wallpad:466]:     0x11: Binary
+[00:00:00][I][Navien_Wallpad:466]:     0x12: Binary
+[00:00:00][I][Navien_Wallpad:466]:     0x13: Binary
+[00:00:00][I][Navien_Wallpad:604]: Thermostat Scan Result: Group: 1, Total: 4
+[00:00:00][I][Navien_Wallpad:605]:   Maker: 0x00
+[00:00:00][I][Navien_Wallpad:606]:   Type: Air (0x01)
+[00:00:00][I][Navien_Wallpad:610]:   Temperature Max: 40
+[00:00:00][I][Navien_Wallpad:611]:   Temperature Min: 5
+[00:00:00][I][Navien_Wallpad:612]:   Support 0.5: no
+[00:00:00][I][Navien_Wallpad:613]:   Support Reserve: yes
+[00:00:00][I][Navien_Wallpad:614]:   Support Hot Water: no
+[00:00:00][I][Navien_Wallpad:615]:   Support Outing: yes
+[00:00:00][I][Navien_Wallpad:616]:   List:
+[00:00:00][I][Navien_Wallpad:618]:     0x11
+[00:00:00][I][Navien_Wallpad:618]:     0x12
+[00:00:00][I][Navien_Wallpad:618]:     0x13
+[00:00:00][I][Navien_Wallpad:618]:     0x14
+```
+
+List 부분에 0x11, 0x12 와 같이 표시된 ID 를 아래의 설정에서 사용하시면 됩니다.
+
+조명은 아래와 같은 종류로 구분됩니다.
+
+- Binary: On/Off 만 지원되는 일반적인 조명
+- Dimmable: 밝기 조절되는 조명 **(지원되지 않음)**
+
+온도조절기는 아래와 같은 항목이 있습니다.
+
+- Maker: 제조사 (번호로 표시되나 알 수 없음)
+- Type: 종류 (Air: 기온식, Hot Water: 난방수 온도식)
+- Temperature Max: 최고 온도
+- Temperature Min: 최저 온도
+- Support 0.5: 0.5도 단위 제어 지원 유무
+- Support Reserve: 예약 기능 지원
+- Support Hot Water: 온수 기능 지원
+- Support Outing: 외출 기능 지원
+
+설정이 끝난 이후 삭제하셔도 됩니다.
+
+### 조명
 
 ```yaml
   lights:
@@ -103,11 +157,9 @@ navien_wallpad:
       sub_id: 0x11
 ```
 
-월패드에 표시되는 조명의 개수를 보고 추가하시면 됩니다. 자동으로 파악하는 기능은 현재 없습니다.
+sub_id 는 위에서 스캔한 ID 를 기입하시면 됩니다. 0x11, 0x12, 0x13, ... 과 같은 형식입니다.
 
-sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
-
-가스밸브 추가 방법:
+### 가스밸브
 
 ```yaml
   valve_sensor:
@@ -118,7 +170,7 @@ sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
     id: gas_valve_close
 ```
 
-온도조절기 추가 방법:
+### 온도조절기
 
 ```yaml
   climates:
@@ -127,9 +179,7 @@ sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
       sub_id: 0x11
 ```
 
-마찬가지로, 월패드에 표시되는 난방기 개수를 보고 추가하시면 됩니다.
-
-sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
+마찬가지로, sub_id 는 위에서 스캔한 ID 를 기입하시면 됩니다. 0x11, 0x12, 0x13, ... 과 같은 형식입니다.
 
 0.5도 단위 조작을 원하시면 아래 설정을 추가하시면 됩니다. (우리집에서 지원되지 않아 검증되지 않음)
 
@@ -137,7 +187,7 @@ sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
   support_temperature_0_5: true
 ```
 
-원격검침기 추가 방법:
+### 원격검침기
 
 ```yaml
   measures:
@@ -158,13 +208,15 @@ sub_id 는 아마도 0x11, 0x12, 0x13, ... 과 같이 되어있을 것입니다.
       update_interval: 30s
 ```
 
-일괄차단기(일괄소등) 추가 방법:
+### 일괄차단기(일괄소등)
 
 ```yaml
   breaker:
     name: "Break Lights"
     id: break_lights
 ```
+
+### 기타
 
 실제 전송 데이터를 보고 싶다면, 아래 스위치를 추가하고 켜면 됩니다.
 

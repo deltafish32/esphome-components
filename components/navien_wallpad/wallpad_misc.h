@@ -49,5 +49,16 @@ protected:
 };
 
 
+class WallpadScanButton : public button::Button, public Component {
+public:
+  void dump_config() override;
+  float get_setup_priority() const override;
+
+protected:
+  void press_action() override;
+
+};
+
+
 } // navien_wallpad
 } // esphome

@@ -39,6 +39,7 @@ CONF_POWER_TOTAL   = 'power_total'
 CONF_BREAKER = 'breaker'
 CONF_DETAILED_LOG = 'detailed_log'
 CONF_WALLPAD_TEST = 'wallpad_test'
+CONF_WALLPAD_SCAN = 'wallpad_scan'
 CONF_SUPPORT_TEMPERATURE_0_5 = 'support_temperature_0_5'
 
 UNIT_M3_H = 'm³/h'
@@ -67,6 +68,7 @@ WallpadPowerTotal   = navien_wallpad_ns.class_('WallpadPowerTotal',   WallpadMea
 WallpadBreakLightsSwitch = navien_wallpad_ns.class_('WallpadBreakLightsSwitch', switch.Switch, cg.Component)
 WallpadLogSwitch = navien_wallpad_ns.class_('WallpadLogSwitch', switch.Switch, cg.Component)
 WallpadTestButton = navien_wallpad_ns.class_('WallpadTestButton', button.Button, cg.Component)
+WallpadScanButton = navien_wallpad_ns.class_('WallpadScanButton', button.Button, cg.Component)
 
 
 CONFIG_SCHEMA = (
@@ -181,18 +183,22 @@ CONFIG_SCHEMA = (
                     cv.GenerateID(): cv.declare_id(WallpadBreakLightsSwitch),
                     cv.Optional(CONF_ICON, default=ICON_ELECTRIC_SWITCH): cv.icon,
                 }
-            ).extend(cv.COMPONENT_SCHEMA),
-            cv.Optional(CONF_DETAILED_LOG): switch.SWITCH_SCHEMA.extend(
+            ).extend(cv.COMPONENT_SCHEMA), cv.Optional(CONF_DETAILED_LOG): switch.SWITCH_SCHEMA.extend(
                 {
                     cv.GenerateID(): cv.declare_id(WallpadLogSwitch),
                     cv.Optional(CONF_ICON, default=ICON_NOTE_EDIT): cv.icon,
                 }
-            ).extend(cv.COMPONENT_SCHEMA),
-            cv.Optional(CONF_WALLPAD_TEST): button.button_schema(
+            ).extend(cv.COMPONENT_SCHEMA), cv.Optional(CONF_WALLPAD_TEST): button.button_schema(
                 icon=ICON_CODE_BRACES,
             ).extend(
                 {
                     cv.GenerateID(): cv.declare_id(WallpadTestButton),
+                }
+            ).extend(cv.COMPONENT_SCHEMA), cv.Optional(CONF_WALLPAD_SCAN): button.button_schema(
+                icon=ICON_CODE_BRACES,
+            ).extend(
+                {
+                    cv.GenerateID(): cv.declare_id(WallpadScanButton),
                 }
             ),
         }
@@ -282,6 +288,12 @@ async def to_code(config):
 
     if CONF_WALLPAD_TEST in config:
         conf = config[CONF_WALLPAD_TEST]
+        var = cg.new_Pvariable(conf[CONF_ID])
+        await button.register_button(var, conf)
+        await cg.register_component(var, conf)
+
+    if CONF_WALLPAD_SCAN in config:
+        conf = config[CONF_WALLPAD_SCAN]
         var = cg.new_Pvariable(conf[CONF_ID])
         await button.register_button(var, conf)
         await cg.register_component(var, conf)

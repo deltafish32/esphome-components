@@ -70,5 +70,26 @@ void WallpadTestButton::press_action() {
 }
 
 
+void WallpadScanButton::dump_config() {
+  ESP_LOGCONFIG("WallpadScanButton", "%s:", "WallpadScanButton");
+}
+
+
+float WallpadScanButton::get_setup_priority() const {
+  return setup_priority::HARDWARE;
+}
+
+
+void WallpadScanButton::press_action() {
+  for (int i = 1; i <= KSX4506_MAX_GROUPS; i++) {
+    Navien_Wallpad::push_queue(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, NULL));
+  }
+  
+  for (int i = 1; i <= 1; i++) { // KSX4506_MAX_GROUPS
+    Navien_Wallpad::push_queue(KSX4506_DATA(KID_THERMOSTAT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, NULL));
+  }
+}
+
+
 } // navien_wallpad
 } // esphome

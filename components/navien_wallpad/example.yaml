@@ -8,9 +8,11 @@ uart:
   rx_pin: D1
   baud_rate: 9600
   rx_buffer_size: 1024
-  
+
 navien_wallpad:
   uart_id: uart_bus
+  wallpad_scan:
+    name: "Wallpad Scan"
   lights:
     - name: "LivingRoom Light1"
       sub_id: 0x11

@@ -18,7 +18,7 @@
 namespace esphome {
 namespace navien_wallpad {
 
-#define VERSION "0.1.1"
+#define VERSION "0.2.0"
 
 
 class Navien_Wallpad : public uart::UARTDevice, public Component {
@@ -134,6 +134,8 @@ public:
   static double get_gas_total();
   static double get_power_current();
   static double get_power_total();
+
+  static void push_queue(const KSX4506_DATA& ksx_data);
   
 
 };

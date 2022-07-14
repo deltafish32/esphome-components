@@ -447,6 +447,28 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
 
       return any_stored;
     }
+    else if (ksx_data.command_type == KCT_RPY_SPEC && ksx_data.data_len == 5) {
+      byte group_id = GET_GROUP(ksx_data.device_sub_id);
+      byte each_id  = GET_EACH(ksx_data.device_sub_id);
+
+      int lights_binary = ksx_data.data[1];
+      int lights_dimmable = ksx_data.data[2];
+      word light_flag = ksx_data.data[3] | (ksx_data.data[4] << 8);
+      int lights_total = lights_binary + lights_dimmable;
+
+      if (lights_binary <= KSX4506_MAX_LIGHTS
+       && lights_dimmable <= KSX4506_MAX_LIGHTS) {
+        ESP_LOGI(TAG, "Light Scan Result: Group: %d, Total: %d (Binary: %d, Dimmable: %d)",
+          group_id, lights_total, lights_binary, lights_dimmable);
+
+        ESP_LOGI(TAG, "  List:");
+        for (int i = 0; i < lights_total; i++) {
+          ESP_LOGI(TAG, "    0x%x%x: %s", group_id, i + 1, (light_flag & (1 << i)) ? "Dimmable" : "Binary");
+        }
+      }
+
+      return true;
+    }
     break;
   case KID_GASVALVE: // 가스 밸브
     switch (ksx_data.device_sub_id) {
@@ -563,6 +585,41 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
       }
 
       return any_stored;
+    }
+    else if (ksx_data.command_type == KCT_RPY_SPEC && ksx_data.data_len == 7) {
+      byte group_id = GET_GROUP(ksx_data.device_sub_id);
+      byte each_id  = GET_EACH(ksx_data.device_sub_id);
+
+      int thermostats_maker      = ksx_data.data[1]; // 제조사
+      int thermostats_type       = ksx_data.data[2];  // 방식 0x01: 기온, 0x02: 난방수
+      int thermostats_max        = ksx_data.data[3];   // 온도 상한
+      int thermostats_min        = ksx_data.data[4];   // 온도 하한
+      bool thermostats_0_5       = (ksx_data.data[5] & 0x10) ? true : false;
+      bool thermostats_reserve   = (ksx_data.data[5] & 0x08) ? true : false;
+      bool thermostats_hot_water = (ksx_data.data[5] & 0x04) ? true : false;
+      bool thermostats_outing    = (ksx_data.data[5] & 0x02) ? true : false;
+      int thermostats_count      = ksx_data.data[6]; // 컨트롤러 개수
+
+      if (thermostats_count <= KSX4506_MAX_CLIMATES) {
+        ESP_LOGI(TAG, "Thermostat Scan Result: Group: %d, Total: %d", group_id, thermostats_count);
+        ESP_LOGI(TAG, "  Maker: 0x%02x", thermostats_maker);
+        ESP_LOGI(TAG, "  Type: %s (0x%02x)", 
+          thermostats_type == 0x01 ? "Air" : 
+          thermostats_type == 0x02 ? "Heating Water" : "Unknown",
+          thermostats_type);
+        ESP_LOGI(TAG, "  Temperature Max: %d", thermostats_max);
+        ESP_LOGI(TAG, "  Temperature Min: %d", thermostats_min);
+        ESP_LOGI(TAG, "  Support 0.5: %s", thermostats_0_5 ? "yes" : "no");
+        ESP_LOGI(TAG, "  Support Reserve: %s", thermostats_reserve ? "yes" : "no");
+        ESP_LOGI(TAG, "  Support Hot Water: %s", thermostats_hot_water ? "yes" : "no");
+        ESP_LOGI(TAG, "  Support Outing: %s", thermostats_outing ? "yes" : "no");
+        ESP_LOGI(TAG, "  List:");
+        for (int i = 0; i < thermostats_count; i++) {
+          ESP_LOGI(TAG, "    0x%x%x", group_id, i + 1);
+        }
+      }
+
+      return true;
     }
     break;
   }
@@ -908,6 +965,15 @@ double Navien_Wallpad::get_power_total() {
   return __this->measure_.power_total / 10.0;
 }
 
+
+void Navien_Wallpad::push_queue(const KSX4506_DATA& ksx_data) {
+  if (__this == NULL) {
+    LOG_NOT_INITIALIZED();
+    return;
+  }
+
+  __this->write_queue_.push_back(ksx_data);
+}
 
 
 } // namespace navien_wallpad
