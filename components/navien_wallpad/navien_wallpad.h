@@ -60,6 +60,7 @@ public:
   void register_light(WallpadLightOutput *light);
 
   void set_support_temperature_0_5(bool b);
+  void set_write_retry(int retry);
 
 
 protected:
@@ -69,6 +70,7 @@ protected:
   std::vector<WallpadLightOutput *> light_outputs_;
 
   bool support_temperature_0_5_{false};
+  int write_retry_{2};
 
 
 protected:
@@ -77,6 +79,9 @@ protected:
 
   bool read_flag_{false};
   unsigned long read_tick_;
+
+  KSX4506_DATA write_last_;
+  int write_try_;
 
   int polling_step_{0};
   bool polling_flag_;

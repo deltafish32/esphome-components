@@ -53,3 +53,4 @@ navien_wallpad:
     name: "Break Lights"
   detailed_log:
     name: "Wallpad Log"
+  write_retry: 2

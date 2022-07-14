@@ -41,6 +41,7 @@ CONF_DETAILED_LOG = 'detailed_log'
 CONF_WALLPAD_TEST = 'wallpad_test'
 CONF_WALLPAD_SCAN = 'wallpad_scan'
 CONF_SUPPORT_TEMPERATURE_0_5 = 'support_temperature_0_5'
+CONF_WRITE_RETRY = 'write_retry'
 
 UNIT_M3_H = 'm³/h'
 UNIT_M3 = 'm³'
@@ -201,6 +202,7 @@ CONFIG_SCHEMA = (
                     cv.GenerateID(): cv.declare_id(WallpadScanButton),
                 }
             ),
+            cv.Optional(CONF_WRITE_RETRY, default=2): cv.int_range(min=1, max=5),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
@@ -297,3 +299,6 @@ async def to_code(config):
         var = cg.new_Pvariable(conf[CONF_ID])
         await button.register_button(var, conf)
         await cg.register_component(var, conf)
+
+    cg.add(wp.set_write_retry(config[CONF_WRITE_RETRY]))
+

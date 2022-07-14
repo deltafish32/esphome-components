@@ -74,6 +74,13 @@ void Navien_Wallpad::loop_read() {
         if (show_detailed_log_) {
           trace_data("read", read_queue_, result);
         }
+
+        if (write_try_ > 0
+         && ksx_data.device_id == write_last_.device_id
+         && ksx_data.device_sub_id == write_last_.device_sub_id
+         && ksx_data.command_type == (write_last_.command_type | 0x80)) {
+          write_try_ = 0;
+        }
       }
       else {
         trace_data("read", read_queue_, result);
@@ -99,10 +106,24 @@ void Navien_Wallpad::loop_write() {
     byte buffer[KSX4506_MAX_SIZE];
     byte buffer_len = 0;
 
-    if (write_queue_.size() > 0) {
-      KSX4506_DATA& ksx_data = write_queue_.front();
-      buffer_len = ksx_data.to_buffer(buffer);
+    if (write_try_ > 0) {
+      if (tick - write_tick_ >= write_timeout_) {
+        --write_try_;
+      }
+      else {
+        return;
+      }
+    }
+
+    if (write_try_ > 0) {
+      buffer_len = write_last_.to_buffer(buffer);
+    }
+    else if (write_queue_.size() > 0) {
+      write_last_ = write_queue_.front();
       write_queue_.pop_front();
+      
+      buffer_len = write_last_.to_buffer(buffer);
+      write_try_ = write_retry_;
     }
     else {
       byte light_sub_id = 0;
@@ -326,6 +347,11 @@ void Navien_Wallpad::register_light(WallpadLightOutput *light) {
 
 void Navien_Wallpad::set_support_temperature_0_5(bool b) {
   support_temperature_0_5_ = b;
+}
+
+
+void Navien_Wallpad::set_write_retry(int retry) {
+  write_retry_ = retry;
 }
 
 
