@@ -1,0 +1,8 @@
+external_components:
+  - source: github://deltafish32/esphome-components/ledc_esp32s2
+    refresh: always
+
+output:
+  - platform: ledc_esp32s2
+    pin: 21
+    id: rtttl_out
