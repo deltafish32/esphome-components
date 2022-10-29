@@ -22,9 +22,9 @@ public:
 
 
   ~CycleQueue() {
-    if (data_ != NULL) {
+    if (data_ != nullptr) {
       delete[] data_;
-      data_ = NULL;
+      data_ = nullptr;
     }
   }
 

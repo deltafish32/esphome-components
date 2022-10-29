@@ -66,7 +66,7 @@ float WallpadTestButton::get_setup_priority() const {
 
 
 void WallpadTestButton::press_action() {
-  //NavienWallpad::writeTest(KSX4506_DATA(KID_DOORLOCK, 0x01, KCT_REQ_STATE, 0, NULL));
+  //NavienWallpad::writeTest(KSX4506_DATA(KID_DOORLOCK, 0x01, KCT_REQ_STATE, 0, nullptr));
 }
 
 
@@ -82,11 +82,11 @@ float WallpadScanButton::get_setup_priority() const {
 
 void WallpadScanButton::press_action() {
   for (int i = 1; i <= KSX4506_MAX_GROUPS; i++) {
-    Navien_Wallpad::push_queue(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, NULL));
+    Navien_Wallpad::push_queue(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, nullptr));
   }
-  
+
   for (int i = 1; i <= 1; i++) { // KSX4506_MAX_GROUPS
-    Navien_Wallpad::push_queue(KSX4506_DATA(KID_THERMOSTAT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, NULL));
+    Navien_Wallpad::push_queue(KSX4506_DATA(KID_THERMOSTAT, MAKE_SUB_ID(i, KSX4506_ID_ALL), KCT_REQ_SPEC, 0, nullptr));
   }
 }
 

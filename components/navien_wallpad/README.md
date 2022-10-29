@@ -82,8 +82,8 @@ external_components:
 
 uart:
   id: uart_bus
-  tx_pin: D2
-  rx_pin: D1
+  tx_pin: TX
+  rx_pin: RX
   baud_rate: 9600
   rx_buffer_size: 1024
   
@@ -92,6 +92,8 @@ navien_wallpad:
 ```
 
 이제, 필요한 항목을 하나씩 추가하시면 됩니다.
+
+Hardware Serial 을 지원하는 핀을 사용하시는 것을 권장드립니다. Software Serial 사용시 간헐적으로 사용 불가 (`unavailable`) 상태가 되는 문제가 있습니다. [이 문서](https://esphome.io/components/logger.html#hardware-uarts)를 참고해주십시오.
 
 ### 스캔
 

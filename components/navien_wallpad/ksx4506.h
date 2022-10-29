@@ -79,7 +79,7 @@ public:
   byte device_sub_id;
   byte command_type;
   byte data_len;
-  byte* data;
+  byte data[KSX4506_MAX_SIZE];
 
 
 public:
@@ -87,14 +87,11 @@ public:
   KSX4506_DATA(byte _id, byte _sub_id, byte _cmd_type, byte _d_len, const byte* _d);
   KSX4506_DATA(const KSX4506_DATA& _other);
 
-  ~KSX4506_DATA();
-
 
 public:
   KSX4506_DATA& operator =(const KSX4506_DATA& _other) ;
 
   void set_data(byte _d_len, const byte* _d);
-  void release();
   byte to_buffer(byte* _buffer) const;
 
 

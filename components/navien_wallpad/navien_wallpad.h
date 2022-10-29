@@ -64,8 +64,8 @@ public:
 
 
 protected:
-  binary_sensor::BinarySensor *valve_close_sensor_{NULL};
-  switch_::Switch *breaker_switch_{NULL};
+  binary_sensor::BinarySensor *valve_close_sensor_{nullptr};
+  switch_::Switch *breaker_switch_{nullptr};
   std::vector<WallpadClimate *> climates_;
   std::vector<WallpadLightOutput *> light_outputs_;
 

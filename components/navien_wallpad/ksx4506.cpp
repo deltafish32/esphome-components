@@ -10,7 +10,7 @@ KSX4506_DATA::KSX4506_DATA() {
   device_sub_id = 0;
   command_type = 0;
   data_len = 0;
-  data = NULL;
+  memset(data, 0, sizeof(data));
 };
 
 
@@ -18,7 +18,6 @@ KSX4506_DATA::KSX4506_DATA(byte _id, byte _sub_id, byte _cmd_type, byte _d_len, 
   device_id = _id;
   device_sub_id = _sub_id;
   command_type = _cmd_type;
-  data = NULL;
   set_data(_d_len, _d);
 };
 
@@ -28,16 +27,10 @@ KSX4506_DATA::KSX4506_DATA(const KSX4506_DATA& _other) {
 };
 
 
-KSX4506_DATA::~KSX4506_DATA() {
-  release();
-};
-
-
 KSX4506_DATA& KSX4506_DATA::operator =(const KSX4506_DATA& _other) {
   device_id     = _other.device_id;
   device_sub_id = _other.device_sub_id;
   command_type  = _other.command_type;
-  data = NULL;
   set_data(_other.data_len, _other.data);
 
   return *this;
@@ -45,22 +38,11 @@ KSX4506_DATA& KSX4506_DATA::operator =(const KSX4506_DATA& _other) {
 
 
 void KSX4506_DATA::set_data(byte _d_len, const byte* _d) {
-  release();
-
   data_len = _d_len;
   if (data_len > 0) {
-    data = new byte[data_len];
-    if (_d != NULL) {
+    if (_d != nullptr) {
       memcpy(data, _d, data_len);
     }
-  }
-}
-
-
-void KSX4506_DATA::release() {
-  if (data != NULL) {
-    delete[] data;
-    data = NULL;
   }
 }
 
