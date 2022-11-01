@@ -80,10 +80,6 @@ external_components:
   - source: github://deltafish32/esphome-components
     refresh: always
 
-logger:
-  hardware_uart: UART1
-  baud_rate: 115200
-
 uart:
   id: uart_bus
   tx_pin: TX
@@ -97,10 +93,16 @@ navien_wallpad:
 
 Hardware Serial 을 지원하는 핀을 사용하시는 것을 권장드립니다. [이 문서](https://esphome.io/components/logger.html#hardware-uarts)를 참고해주십시오. Software Serial 사용시 간헐적으로 사용 불가(`unavailable`) 상태가 되는 문제가 있습니다.
 
-따라서 Logger 를 사용중이시면 ESP8266 기준, 아래와 같이 구성하시는 것을 권장드립니다.
+ESP32 는 Hardware Serial 이 넉넉하므로 문제 없지만, ESP8266 에 Logger 를 사용중이시면 아래와 같이 구성하시는 것을 권장드립니다.
 
 - UART0: RS485 to TTL
 - UART1: Logger
+
+```yaml
+logger:
+  hardware_uart: UART1
+  baud_rate: 115200
+```
 
 이제, 필요한 항목을 하나씩 추가하시면 됩니다.
 
