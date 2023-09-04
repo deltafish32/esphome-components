@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2
+- button.button_schema 문제 수정
+
 ## 0.2.1
 - 메모리 누수 문제 수정
 
