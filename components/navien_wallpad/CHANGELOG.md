@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.2.2
-- button.button_schema 문제 수정
+- button.button_schema 문제 수정 (ESPHome 8.2 대응)
 
 ## 0.2.1
 - 메모리 누수 문제 수정

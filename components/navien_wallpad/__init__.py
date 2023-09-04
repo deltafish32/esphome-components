@@ -191,12 +191,14 @@ CONFIG_SCHEMA = (
                     cv.Optional(CONF_ICON, default=ICON_NOTE_EDIT): cv.icon,
                 }
             ).extend(cv.COMPONENT_SCHEMA), cv.Optional(CONF_WALLPAD_TEST): button.button_schema(
+                WallpadTestButton,
                 icon=ICON_CODE_BRACES,
             ).extend(
                 {
                     cv.GenerateID(): cv.declare_id(WallpadTestButton),
                 }
             ).extend(cv.COMPONENT_SCHEMA), cv.Optional(CONF_WALLPAD_SCAN): button.button_schema(
+                WallpadScanButton,
                 icon=ICON_CODE_BRACES,
             ).extend(
                 {
