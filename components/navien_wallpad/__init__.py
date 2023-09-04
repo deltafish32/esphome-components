@@ -82,6 +82,7 @@ CONFIG_SCHEMA = (
                 }
             ),
             cv.Optional(CONF_VALVE_CLOSE_BUTTON): button.button_schema(
+                WallpadValveCloseButton,
                 icon=ICON_VALVE_CLOSED,
             ).extend(
                 {
