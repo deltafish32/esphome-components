@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ksx4506.h"
+
 
 
 namespace esphome {

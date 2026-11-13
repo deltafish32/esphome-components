@@ -27,11 +27,12 @@ public:
 
 
 private:
-  Navien_Wallpad(const Navien_Wallpad&);
+  Navien_Wallpad(const Navien_Wallpad&) = delete;
+  Navien_Wallpad& operator=(const Navien_Wallpad&) = delete;
 
 
 protected:
-  static Navien_Wallpad* __this;
+  static Navien_Wallpad* instance_;
 
 
 public:
@@ -76,26 +77,27 @@ protected:
 protected:
   CycleQueue<byte> read_queue_;
   std::list<KSX4506_DATA> write_queue_;
+  const size_t write_queue_max_{32};
 
   bool read_flag_{false};
-  unsigned long read_tick_;
+  unsigned long read_tick_{0};
 
   KSX4506_DATA write_last_;
-  int write_try_;
+  int write_try_{0};
 
   int polling_step_{0};
-  bool polling_flag_;
-  unsigned long write_tick_;
+  bool polling_flag_{false};
+  unsigned long write_tick_{0};
   const unsigned long write_delay_{20};
   const unsigned long write_timeout_{200};
 
-  unsigned long publish_tick_;
+  unsigned long publish_tick_{0};
   const unsigned long publish_period_{1500};
-  unsigned long publish_slow_tick_; // thermostat
+  unsigned long publish_slow_tick_{0}; // thermostat
   const unsigned long publish_slow_period_{6000};
 
   bool recv_thermostat_req_{false}; // Wallpad 에서 자체적으로 패킷이 날아오는 경우
-  unsigned long recv_thermostat_req_tick_;
+  unsigned long recv_thermostat_req_tick_{0};
   const unsigned long thermostat_req_timeout_{3000};
 
   bool show_detailed_log_{false};
@@ -111,10 +113,12 @@ protected:
 
 protected:
   void restart_publish_timer();
+  void enqueue_write(const KSX4506_DATA& ksx_data);
   static int parse_packet(const CycleQueue<byte>& queue, KSX4506_DATA* p);
   static unsigned long bcd2dec(byte b3, byte b2, byte b1, byte b0);
+  float raw_to_temperature(byte raw) const;
   bool on_recv_ksx4506(const KSX4506_DATA& ksx_data);
-  template <class _Ty> void trace_data(const char* tag, const _Ty& data, byte len);
+  template <class _Ty> void trace_data(const char* tag, const _Ty& data, int len);
   //bool light_store_state(byte sub_id, bool state);
 
   static bool is_valid_sub_id_light(byte sub_id);
@@ -122,6 +126,7 @@ protected:
 
 
 public:
+  static bool get_support_temperature_0_5();
   static bool get_breaker_init();
   static bool get_climate_init(byte sub_id);
   static bool get_light_init(byte sub_id);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Arduino.h>
+#include "ksx4506.h"
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"
 

@@ -45,6 +45,12 @@ void WallpadLightOutput::write_state(light::LightState *state) {
   bool onoff;
   state->current_values_as_binary(&onoff);
 
+  // Wallpad 상태 반영으로 인한 write 는 다시 전송하지 않습니다 (에코 방지)
+  if (ignore_write_) {
+    ignore_write_ = false;
+    if (onoff == ignore_state_) return;
+  }
+
   // 재부팅시 상태 변경 방지
   if (Navien_Wallpad::get_light_init(sub_id_)) {
     Navien_Wallpad::set_light_state(sub_id_, onoff);
@@ -64,6 +70,12 @@ void WallpadLightOutput::set_sub_id(int sub_id) {
 
 int WallpadLightOutput::get_sub_id() const {
   return sub_id_;
+}
+
+
+void WallpadLightOutput::ignore_next_write(bool state) {
+  ignore_write_ = true;
+  ignore_state_ = state;
 }
 
 

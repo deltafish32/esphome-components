@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Arduino.h>
+#include "ksx4506.h"
 #include "esphome/core/component.h"
 #include "esphome/components/light/light_effect.h"
 #include "esphome/components/light/light_output.h"
@@ -33,10 +33,16 @@ public:
   void set_sub_id(int sub_id);
   int get_sub_id() const;
 
+  // Wallpad 상태를 반영(publish)할 때 발생하는 write_state 를 1회 무시합니다.
+  void ignore_next_write(bool state);
+
 
 protected:
-  light::LightState *light_state_;
-  int sub_id_;
+  bool ignore_write_{false};
+  bool ignore_state_{false};
+
+  light::LightState *light_state_{nullptr};
+  int sub_id_{0};
 };
 
 

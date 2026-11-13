@@ -1,5 +1,7 @@
 #include "navien_wallpad.h"
 #include "log.h"
+#include <cmath>
+#include <cstdio>
 
 
 namespace esphome {
@@ -24,20 +26,15 @@ static const byte VALVE_CLOSE = 0x02;
 
 
 
-Navien_Wallpad* Navien_Wallpad::__this = nullptr;
+Navien_Wallpad* Navien_Wallpad::instance_ = nullptr;
 
 
 Navien_Wallpad::Navien_Wallpad(uart::UARTComponent *parent) : uart::UARTDevice(parent) {
-  __this = this;
+  instance_ = this;
 
   read_tick_ = millis();
 
   restart_publish_timer();
-}
-
-
-Navien_Wallpad::Navien_Wallpad(const Navien_Wallpad&) {
-
 }
 
 
@@ -59,6 +56,22 @@ void Navien_Wallpad::loop() {
 
 void Navien_Wallpad::dump_config() {
   ESP_LOGCONFIG(TAG, "%s:", TAG);
+  ESP_LOGCONFIG(TAG, "  Version: %s", VERSION);
+  ESP_LOGCONFIG(TAG, "  Write retry: %d", write_retry_);
+  ESP_LOGCONFIG(TAG, "  Support temperature 0.5: %s", YESNO(support_temperature_0_5_));
+  ESP_LOGCONFIG(TAG, "  Lights: %d (groups: %d)", (int)light_outputs_.size(), (int)lights_.size());
+  ESP_LOGCONFIG(TAG, "  Climates: %d (groups: %d)", (int)climates_.size(), (int)thermostats_.size());
+}
+
+
+void Navien_Wallpad::enqueue_write(const KSX4506_DATA& ksx_data) {
+  // 버스가 응답하지 않는 경우 큐가 무한히 커지지 않도록 제한합니다.
+  if (write_queue_.size() >= write_queue_max_) {
+    ESP_LOGW(TAG, "write queue full, dropping oldest command");
+    write_queue_.pop_front();
+  }
+
+  write_queue_.push_back(ksx_data);
 }
 
 
@@ -70,19 +83,19 @@ void Navien_Wallpad::loop_read() {
     int result = parse_packet(read_queue_, &ksx_data);
 
     if (result > 0) {
-      if (on_recv_ksx4506(ksx_data)) {
-        if (show_detailed_log_) {
-          trace_data("read", read_queue_, result);
-        }
+      bool handled = on_recv_ksx4506(ksx_data);
 
-        if (write_try_ > 0
-         && ksx_data.device_id == write_last_.device_id
-         && ksx_data.device_sub_id == write_last_.device_sub_id
-         && ksx_data.command_type == (write_last_.command_type | 0x80)) {
-          write_try_ = 0;
-        }
+      // ACK 확인은 응답 처리 여부와 관계없이 수행합니다.
+      bool acked = false;
+      if (write_try_ > 0
+       && ksx_data.device_id == write_last_.device_id
+       && ksx_data.device_sub_id == write_last_.device_sub_id
+       && ksx_data.command_type == (write_last_.command_type | 0x80)) {
+        write_try_ = 0;
+        acked = true;
       }
-      else {
+
+      if (show_detailed_log_ || !(handled || acked)) {
         trace_data("read", read_queue_, result);
       }
 
@@ -211,8 +224,12 @@ void Navien_Wallpad::publish_lights() {
           l_out->get_light_state()->current_values_as_binary(&state);
           
           if (l_group.init_publish == false || state != l_group.state[i]) {
+            bool new_state = l_group.state[i] ? true : false;
+            l_out->ignore_next_write(new_state);
+
             auto call = l_out->get_light_state()->make_call();
-            call.set_state(l_group.state[i] ? true : false);
+            call.set_state(new_state);
+            call.set_transition_length(0);
             call.perform();
           }
 
@@ -266,17 +283,16 @@ void Navien_Wallpad::publish_thermostat() {
       for (auto &climate : climates_) {
         if (climate->get_sub_id() == sub_id) {
           auto mode = (t_group.state.heating & (0x01 << i)) ? climate::CLIMATE_MODE_HEAT : climate::CLIMATE_MODE_OFF;
-          if (climate->mode                != mode
-           || climate->current_temperature != t_group.state.current[i]
-           || climate->target_temperature  != t_group.state.target[i]) {
-            climate->mode = mode;
-            climate->target_temperature  = ( t_group.state.target[i]  & 0x7f);
-            climate->current_temperature = ( t_group.state.current[i] & 0x7f);
+          float target  = raw_to_temperature(t_group.state.target[i]);
+          float current = raw_to_temperature(t_group.state.current[i]);
 
-            if (support_temperature_0_5_) {
-              climate->target_temperature  += ((t_group.state.target[i]  & 0x80) ? 0.5f : 0);
-              climate->current_temperature += ((t_group.state.current[i] & 0x80) ? 0.5f : 0);
-            }
+          if (t_group.init_publish == false
+           || climate->mode                != mode
+           || climate->current_temperature != current
+           || climate->target_temperature  != target) {
+            climate->mode = mode;
+            climate->target_temperature  = target;
+            climate->current_temperature = current;
 
             climate->publish_state();
           }
@@ -355,6 +371,15 @@ void Navien_Wallpad::set_write_retry(int retry) {
 }
 
 
+float Navien_Wallpad::raw_to_temperature(byte raw) const {
+  float temperature = (raw & 0x7f);
+  if (support_temperature_0_5_ && (raw & 0x80)) {
+    temperature += 0.5f;
+  }
+  return temperature;
+}
+
+
 void Navien_Wallpad::restart_publish_timer() {
   publish_tick_ = publish_slow_tick_ = millis();
 }
@@ -366,7 +391,7 @@ void Navien_Wallpad::restart_publish_timer() {
 int Navien_Wallpad::parse_packet(const CycleQueue<byte>& queue, KSX4506_DATA* p) {
   if (queue.size() < KSX4506_MIN_SIZE) return -1;
 
-  for (int i = 0; i < queue.size() - KSX4506_MIN_SIZE; i++) {
+  for (int i = 0; i <= queue.size() - KSX4506_MIN_SIZE; i++) {
     // 첫 패킷 찾기
     if (queue[i] != 0xf7) continue;
   
@@ -374,30 +399,25 @@ int Navien_Wallpad::parse_packet(const CycleQueue<byte>& queue, KSX4506_DATA* p)
     byte len = queue[i + 4];
     if (i + KSX4506_MIN_SIZE - 1 + len >= queue.size()) continue;
 
-    byte temp[KSX4506_MAX_SIZE];
-
-    queue.to_buffer(temp, i, i + 5 + len + 1);
-    byte xor_sum = KSX4506_DATA::xor_sum(temp, 5 + len);
+    // 큐에서 직접 체크섬 계산 (임시 버퍼 미사용)
+    byte xor_sum = 0;
+    byte add_sum = 0;
+    for (int j = 0; j < 5 + len; j++) {
+      xor_sum ^= queue[i + j];
+      add_sum += queue[i + j];
+    }
     if (xor_sum != queue[i + 5 + len]) continue;
 
-    queue.to_buffer(temp, i, i + 5 + len + 2);
-    byte add_sum = KSX4506_DATA::add_sum(temp, 5 + len + 1);
+    add_sum += xor_sum;
     if (add_sum != queue[i + 5 + len + 1]) continue;
 
     p->device_id     = queue[i + 1];
     p->device_sub_id = queue[i + 2];
     p->command_type  = queue[i + 3];
-    p->data_len      = queue[i + 4];
+    p->data_len      = len;
 
-    if (len > 0) {
-      byte* data = new byte[len];
-      
-      for (int j = 0; j < len; j++) {
-        data[j] = queue[i + 5 + j];
-      }
-      p->set_data(len, data);
-
-      delete[] data;
+    for (int j = 0; j < len; j++) {
+      p->data[j] = queue[i + 5 + j];
     }
 
     return (i + KSX4506_MIN_SIZE + len);
@@ -433,13 +453,13 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
       byte group_id = GET_GROUP(ksx_data.device_sub_id);
       byte each_id  = GET_EACH(ksx_data.device_sub_id);
 
-      if (ksx_data.data[0] == 0x00) { // error check
+      if (ksx_data.data_len >= 1 && ksx_data.data[0] == 0x00) { // error check
         if (group_id != KSX4506_GROUP_ALL) {
           if (each_id == KSX4506_ID_ALL) {
             // group_id 가 전체가 아니면서,
             // each_id  가 전체인 경우
             // (0x1f, 0x2f, 0x3f, ...)
-            for (int i = 1; i < ksx_data.data_len; i++) {
+            for (int i = 1; i < ksx_data.data_len && i <= KSX4506_MAX_LIGHTS; i++) {
               for (auto &l_group : lights_) {
                 if (l_group.group_id == group_id) {
                   l_group.state[i - 1] = ((ksx_data.data[i] & 0x01) != 0) ? 0x01 : 0x00;
@@ -474,7 +494,6 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
     }
     else if (ksx_data.command_type == KCT_RPY_SPEC && ksx_data.data_len == 5) {
       byte group_id = GET_GROUP(ksx_data.device_sub_id);
-      byte each_id  = GET_EACH(ksx_data.device_sub_id);
 
       int lights_binary = ksx_data.data[1];
       int lights_dimmable = ksx_data.data[2];
@@ -492,6 +511,10 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
         }
       }
 
+      return true;
+    }
+    else if (ksx_data.command_type == KCT_RPY_CONTROLALL) {
+      // 전체 제어 응답: 상태는 이후 KCT_RPY_STATE 로 갱신됩니다.
       return true;
     }
     break;
@@ -512,6 +535,7 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
       }
       break;
     }
+    break;
   case KID_MONITOR: // 원격 검침기
     switch (ksx_data.device_sub_id) {
     case 0x0f:
@@ -594,7 +618,10 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
               t_group.state.reservation = ksx_data.data[3];
               t_group.state.hotwater    = ksx_data.data[4];
               
-              byte thermostat_count = (ksx_data.data_len - 5) / 2;
+              int thermostat_count = (ksx_data.data_len - 5) / 2;
+              if (thermostat_count > KSX4506_MAX_CLIMATES) {
+                thermostat_count = KSX4506_MAX_CLIMATES;
+              }
               for (int i = 0; i < thermostat_count; i++) {
                 t_group.state.target[i]  = ksx_data.data[5 + (i * 2)];
                 t_group.state.current[i] = ksx_data.data[6 + (i * 2)];
@@ -613,7 +640,6 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
     }
     else if (ksx_data.command_type == KCT_RPY_SPEC && ksx_data.data_len == 7) {
       byte group_id = GET_GROUP(ksx_data.device_sub_id);
-      byte each_id  = GET_EACH(ksx_data.device_sub_id);
 
       int thermostats_maker      = ksx_data.data[1]; // 제조사
       int thermostats_type       = ksx_data.data[2];  // 방식 0x01: 기온, 0x02: 난방수
@@ -646,6 +672,12 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
 
       return true;
     }
+    else if (ksx_data.command_type == KCT_RPY_HEATING
+          || ksx_data.command_type == KCT_RPY_TEMPERATURE
+          || ksx_data.command_type == KCT_RPY_OUTING) {
+      // 제어 응답: 상태는 이후 KCT_RPY_STATE 로 갱신됩니다.
+      return true;
+    }
     break;
   }
 
@@ -653,7 +685,7 @@ bool Navien_Wallpad::on_recv_ksx4506(const KSX4506_DATA& ksx_data) {
 }
 
 
-template <class _Ty> void Navien_Wallpad::trace_data(const char* tag, const _Ty& data, byte len) {
+template <class _Ty> void Navien_Wallpad::trace_data(const char* tag, const _Ty& data, int len) {
   char data_str[1024];
   const int div = 150;
   for (int i = 0; i < (len / div + (len % div > 0 ? 1 : 0)); i++) {
@@ -707,25 +739,35 @@ bool Navien_Wallpad::is_valid_sub_id_climate(byte sub_id) {
 }
 
 
-bool Navien_Wallpad::get_breaker_init() {
-  if (__this == nullptr) {
+bool Navien_Wallpad::get_support_temperature_0_5() {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return false;
   }
 
-  return __this->breaker_.init_publish;
+  return instance_->support_temperature_0_5_;
+}
+
+
+bool Navien_Wallpad::get_breaker_init() {
+  if (instance_ == nullptr) {
+    LOG_NOT_INITIALIZED();
+    return false;
+  }
+
+  return instance_->breaker_.init_publish;
 }
 
 
 bool Navien_Wallpad::get_climate_init(byte sub_id) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return false;
   }
 
   byte group_id = GET_GROUP(sub_id);
 
-  for (auto &t_group : __this->thermostats_) {
+  for (auto &t_group : instance_->thermostats_) {
     if (t_group.group_id == group_id) {
       return t_group.init_publish;
     }
@@ -736,14 +778,14 @@ bool Navien_Wallpad::get_climate_init(byte sub_id) {
 
 
 bool Navien_Wallpad::get_light_init(byte sub_id) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return false;
   }
 
   byte group_id = GET_GROUP(sub_id);
 
-  for (auto &l_group : __this->lights_) {
+  for (auto &l_group : instance_->lights_) {
     if (l_group.group_id == group_id) {
       return l_group.init_publish;
     }
@@ -754,7 +796,7 @@ bool Navien_Wallpad::get_light_init(byte sub_id) {
 
 
 void Navien_Wallpad::set_light_state(byte sub_id, bool onoff) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
@@ -763,7 +805,6 @@ void Navien_Wallpad::set_light_state(byte sub_id, bool onoff) {
 
   byte group_id = GET_GROUP(sub_id);
   byte each_id  = GET_EACH(sub_id);
-  byte index = (each_id - 1);
 
   if (!((group_id >= 1 && group_id <= KSX4506_MAX_GROUPS) || group_id == KSX4506_GROUP_ALL)) {
     return;
@@ -771,7 +812,7 @@ void Navien_Wallpad::set_light_state(byte sub_id, bool onoff) {
   
   if (each_id == KSX4506_ID_ALL) {
     byte data[1] = { (byte)(onoff ? 1 : 0) };
-    __this->write_queue_.emplace_back(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data);
+    instance_->enqueue_write(KSX4506_DATA(KID_LIGHT, MAKE_SUB_ID(group_id, KSX4506_ID_ALL), KCT_REQ_CONTROLALL, 1, data));
   }
   else {
     if (!(each_id >= 1 && each_id <= KSX4506_MAX_LIGHTS)) {
@@ -779,22 +820,22 @@ void Navien_Wallpad::set_light_state(byte sub_id, bool onoff) {
     }
     
     byte data[1] = { (byte)(onoff ? 1 : 0) };
-    __this->write_queue_.emplace_back(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data);
+    instance_->enqueue_write(KSX4506_DATA(KID_LIGHT, sub_id, KCT_REQ_CONTROL, 1, data));
   }
 
-  for (auto &l_group : __this->lights_) {
+  for (auto &l_group : instance_->lights_) {
     if (l_group.group_id == group_id) {
       l_group.recv = false;
       break;
     }
   }
 
-  __this->restart_publish_timer();
+  instance_->restart_publish_timer();
 }
 
 
 void Navien_Wallpad::set_valve_close() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
@@ -802,44 +843,44 @@ void Navien_Wallpad::set_valve_close() {
   LOG_SET_NULL();
 
   byte data[1] = {0};
-  __this->write_queue_.emplace_back(KID_GASVALVE, 0x01, KCT_REQ_CONTROL, 1, data);
-  __this->valve_.recv = false;
+  instance_->enqueue_write(KSX4506_DATA(KID_GASVALVE, 0x01, KCT_REQ_CONTROL, 1, data));
+  instance_->valve_.recv = false;
 
-  __this->restart_publish_timer();
+  instance_->restart_publish_timer();
 }
 
 
 void Navien_Wallpad::set_break_lights(bool onoff) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
 
   LOG_SET_BOOL(onoff);
 
-  __this->breaker_.break_lights = onoff;
+  instance_->breaker_.break_lights = onoff;
   byte data[1] = { (byte)(onoff ? 0x00 : 0x01) };
-  __this->write_queue_.emplace_back(KID_BREAKER, 0x01, KCT_REQ_CONTROL, 1, data);
-  __this->breaker_.recv = false;
+  instance_->enqueue_write(KSX4506_DATA(KID_BREAKER, 0x01, KCT_REQ_CONTROL, 1, data));
+  instance_->breaker_.recv = false;
 
-  __this->restart_publish_timer();
+  instance_->restart_publish_timer();
 }
 
 
 void Navien_Wallpad::set_show_detailed_log(bool onoff) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
 
   LOG_SET_BOOL(onoff);
 
-  __this->show_detailed_log_ = onoff;
+  instance_->show_detailed_log_ = onoff;
 }
 
 
 void Navien_Wallpad::set_thermostat_onoff(byte sub_id, bool onoff) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
@@ -852,14 +893,14 @@ void Navien_Wallpad::set_thermostat_onoff(byte sub_id, bool onoff) {
   byte each_id  = GET_EACH(sub_id);
   byte index = (each_id - 1);
 
-  for (auto &t_group : __this->thermostats_) {
+  for (auto &t_group : instance_->thermostats_) {
     if (t_group.group_id == group_id) {
       if (onoff) {
         t_group.state.heating |= (0x01 << index);
         t_group.state.outing &= ~(0x01 << index);
 
         byte data[1] = {1};
-        __this->write_queue_.emplace_back(KID_THERMOSTAT, sub_id, KCT_REQ_HEATING, 1, data);
+        instance_->enqueue_write(KSX4506_DATA(KID_THERMOSTAT, sub_id, KCT_REQ_HEATING, 1, data));
         t_group.recv = false;
       }
       else {
@@ -867,7 +908,7 @@ void Navien_Wallpad::set_thermostat_onoff(byte sub_id, bool onoff) {
         t_group.state.outing |= (0x01 << index);
 
         byte data[1] = {1};
-        __this->write_queue_.emplace_back(KID_THERMOSTAT, sub_id, KCT_REQ_OUTING, 1, data);
+        instance_->enqueue_write(KSX4506_DATA(KID_THERMOSTAT, sub_id, KCT_REQ_OUTING, 1, data));
         t_group.recv = false;
       }
 
@@ -875,12 +916,12 @@ void Navien_Wallpad::set_thermostat_onoff(byte sub_id, bool onoff) {
     }
   }
 
-  __this->restart_publish_timer();
+  instance_->restart_publish_timer();
 }
 
 
 void Navien_Wallpad::set_thermostat_temperature(byte sub_id, float temperature) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
@@ -893,104 +934,112 @@ void Navien_Wallpad::set_thermostat_temperature(byte sub_id, float temperature) 
   byte each_id  = GET_EACH(sub_id);
   byte index = (each_id - 1);
 
-  for (auto &t_group : __this->thermostats_) {
+  for (auto &t_group : instance_->thermostats_) {
     if (t_group.group_id == group_id) {
-      byte data[1] = { (byte)temperature };
-      
-      if (__this->support_temperature_0_5_) {
-        data[0] |= ((int)(temperature * 2) % 2 > 0) ? 0x80 : 0x00;
+      byte data[1];
+
+      if (instance_->support_temperature_0_5_) {
+        // 0.5 단위로 반올림
+        int half_units = (int)lroundf(temperature * 2.0f);
+        data[0] = (byte)((half_units / 2) & 0x7f);
+        if (half_units % 2) {
+          data[0] |= 0x80;
+        }
+      }
+      else {
+        data[0] = (byte)(lroundf(temperature) & 0x7f);
       }
 
       t_group.state.target[index] = data[0];
       
-      __this->write_queue_.emplace_back(KID_THERMOSTAT, sub_id, KCT_REQ_TEMPERATURE, 1, data);
+      instance_->enqueue_write(KSX4506_DATA(KID_THERMOSTAT, sub_id, KCT_REQ_TEMPERATURE, 1, data));
       t_group.recv = false;
     }
   }
 
-  __this->restart_publish_timer();
+  instance_->restart_publish_timer();
 }
 
 
 double Navien_Wallpad::get_water_current() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.water_current / 1000.0;
+  return instance_->measure_.water_current / 1000.0;
 }
 
 
 double Navien_Wallpad::get_water_total() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.water_total/ 100.0;
+  return instance_->measure_.water_total/ 100.0;
 }
 
 
 double Navien_Wallpad::get_gas_current() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.gas_current / 1000.0;
+  return instance_->measure_.gas_current / 1000.0;
 }
 
 
 double Navien_Wallpad::get_gas_total() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.gas_total / 100.0;
+  return instance_->measure_.gas_total / 100.0;
 }
 
 
 double Navien_Wallpad::get_power_current() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.power_current;
+  return instance_->measure_.power_current;
 }
 
 
 double Navien_Wallpad::get_power_total() {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return NAN;
   }
 
-  if (!__this->measure_.recv) return NAN;
+  if (!instance_->measure_.recv) return NAN;
 
-  return __this->measure_.power_total / 10.0;
+  return instance_->measure_.power_total / 10.0;
 }
 
 
 void Navien_Wallpad::push_queue(const KSX4506_DATA& ksx_data) {
-  if (__this == nullptr) {
+  if (instance_ == nullptr) {
     LOG_NOT_INITIALIZED();
     return;
   }
 
-  __this->write_queue_.push_back(ksx_data);
+  instance_->enqueue_write(ksx_data);
 }
 
 

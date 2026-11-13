@@ -1,11 +1,17 @@
 #pragma once
 
 
-#include <Arduino.h>
+#include <cstdint>
+#include <cstring>
+#include "esphome/core/hal.h"
 
 
 namespace esphome {
 namespace navien_wallpad {
+
+
+using byte = uint8_t;
+using word = uint16_t;
 
 
 // https://standard.go.kr/KSCI/ksNotification/getKsNotificationView.do?ntfcManageNo=2016-00079&menuId=921&topMenuId=502

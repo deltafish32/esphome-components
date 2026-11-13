@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 
 namespace esphome {
 namespace navien_wallpad {
@@ -88,7 +90,7 @@ public:
 
   void to_buffer(_Ty* p, int start, int end) const {
     for (int i = start; i < end; i++) {
-      p[i] = (*this)[i];
+      p[i - start] = (*this)[i];
     }
   }
 

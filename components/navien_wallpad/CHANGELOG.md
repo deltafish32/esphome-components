@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+- ESPHome 2026.x 대응: deprecated 스키마 API 교체, Arduino 프레임워크 의존 제거
+- 수신 패킷 파싱 시 버퍼 인덱스 오류(스택 오버플로, 체크섬 오판) 수정
+- 수신 데이터 길이 검증 추가, 멤버 변수 초기화
+- valve_sensor 이중 등록 수정
+- 조명 상태 반영 시 제어 명령이 다시 전송되던 문제 수정
+- 조명 전체 제어, 온도조절기 제어 응답을 ACK 로 인식
+- 온도조절기 0.5도 단위 UI 지원, 불필요한 반복 publish 수정
+- sub_id 범위 검증, 검침 센서 device_class 수정
+
 ## 0.2.2
 - button.button_schema 문제 수정 (ESPHome 2023.8.2 대응)
 
