@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 - ESPHome 2026.x 대응: deprecated 스키마 API 교체, Arduino 프레임워크 의존 제거
 - 수신 패킷 파싱 시 버퍼 인덱스 오류(스택 오버플로, 체크섬 오판) 수정
 - 수신 데이터 길이 검증 추가, 멤버 변수 초기화
